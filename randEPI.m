@@ -5,9 +5,6 @@
 % CAIPI added to sample multiple kz locations per RF excitation
 % Rex Fung
 
-%% Local dependencies
-addpath('excitation/');
-
 %% Definte experiment parameters
 run('MRIsystem.m');
 run('EPIparams.m');
