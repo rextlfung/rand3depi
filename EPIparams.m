@@ -1,14 +1,17 @@
 %% Scan parameters for echo-planar imaging (EPI) sequence
 
+% Define scanner
+run('MRIsystem.m')
+
 % Spatial parameters
 res = [2.4 2.4 2.4]*1e-3; % resolution (m)
-N = [90 90 20]; % acquisition tensor size
+N = [90 90 60]; % acquisition tensor size
 fov = N .* res; % field of view (m)
 Nx = N(1); Ny = N(2); Nz = N(3);
 
 % Random undersampling parameters. Total acceleration = Ry*Rz*caipi_z
-Ry = 1; Rz = 1; % Acceleration/undersampling factors in each direction
-caipi_z = 1; % Number of kz locations to acquire per shot. Must be odd.
+Ry = 2; Rz = 1; % Acceleration/undersampling factors in each direction
+caipi_z = 3; % Number of kz locations to acquire per shot. Must be odd.
 R = [Ry Rz];
 acs = [24 12] ./ [Ny Nz]; % Central portion of ky-kz space to fully sample
 max_ky_step = round(Ny/16); % Maximum gap in fast PE direction
