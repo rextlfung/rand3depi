@@ -17,7 +17,7 @@ acs = [24 12] ./ [Ny Nz]; % Central portion of ky-kz space to fully sample
 max_ky_step = round(Ny/16); % Maximum gap in fast PE direction
 
 % Temporal parameters
-Ndummyframes = 2; % dummy frames to reach steady state for calibration
+Ndummyframes = 10; % dummy frames to reach steady state for calibration
 Nshots = ceil(length(1:caipi_z:(Nz - caipi_z + 1))/Rz); % Number of shots per volume
 NframesPerLoop = lcm(40,Nshots)/Nshots; % number of temporal frames to complete one RF spoil cycle
 

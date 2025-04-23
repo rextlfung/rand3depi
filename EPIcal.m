@@ -1,18 +1,16 @@
-% Pseudo-random 3D EPI sequence w/ z blips for CAIPI-like shifting
-% Continuous readout gradient for speed.
-% Create blocks without splitting blips.
-% Represent readout gradients as arbitrary instead of trapezoids.
-% CAIPI added to sample multiple kz locations per RF excitation
-% Rex Fung
+% Calibration scan sequence for EPI
+%
+% This short sequence first excites the volume to steady state, then 
+% acquires many readout lines without Gy and Gz blips to:
+% 1. Allow the scanner to tune receiver gains
+% 2. Collect data used for EPI ghost correciton
 
 %% Define experiment parameters
 run('MRIsystem.m');
 run('EPIparams.m');
 
-% Temporary modifications
-% NframesPerLoop = 1; % Only one frame for plotting k-space trajectory
 %% Path and options
-seqname = 'rand3Depi';
+seqname = 'EPIcal';
 
 %% Excitation pulse
 % Target a slightly thinner slice to alleviate aliasing
@@ -50,22 +48,6 @@ rfsat = mr.makeArbitraryRf(rfp, ...
 rfsat.signal = rfsat.signal/max(abs(rfsat.signal))*max(abs(rfp)); % ensure correct amplitude (Hz)
 rfsat.freqOffset = -fatOffresFreq; % Hz
 
-%% Generate temporally incoherent sampling masks
-% Gaussian sampling weights
-weights_y = normpdf(1:Ny, mean(1:Ny), Ny/6);
-weights_z = normpdf(1:Nz, mean(1:Nz), Nz/6);
-
-omegas = zeros(Ny,Nz,NframesPerLoop);
-acs_indices_z = zeros(round(Nz*acs(2)), 1); % same for all frames
-nacs_indices_z = zeros(round(Nz/Rz/caipi_z) - round(Nz*acs(2)), NframesPerLoop);
-for frame = 1:NframesPerLoop
-    % Create pseudo-random 2D sampling mask. Save for recon
-    rng(frame); % A different mask per frame
-    [omegas(:,:,frame), ...
-     acs_indices_z, ...
-     nacs_indices_z(:,frame)] ...
-     = randsamp2dcaipi(N(2:end), R, acs, weights_y, weights_z, max_ky_step, caipi_z);
-end
 %% Define readout gradients and ADC event
 % The Pulseq toolbox really shines here!
 
@@ -172,116 +154,90 @@ sys.adcDeadTime = 0;
 
 seq = mr.Sequence(sys);
 
-% log the sequence of k-space locations sampled (ky and kz)
-samp_log = zeros(NframesPerLoop, ...
-                 round(Nz/caipi_z/Rz)*2*ceil(Ny/Ry/2), ...
-                 2);
-
 % RF spoiling trackers
 rf_count = 1;
 rf_phase = rf_phase_0;
 
-for frame = 1:NframesPerLoop
-    fprintf('Writing frame %d\n', frame)
-    % Load in kz-ky sampling mask
-    omega = omegas(:,:,frame);
+% kz encoding loop (fake)
+z_locs = 1:caipi_z:(Nz - caipi_z + 1);
+for iz = -Ndummyframes:length(z_locs)
+    % Convenience booleans for turning off adc
+    isDummyFrame = iz < 0;
+    isCalFrame = iz >= 0;
 
-    % Reset sample count
-    samp_count = 1;
-
-    % kz encoding loop
-    % Each "z_loc" is the starting point of a partition of kz locations
-    z_locs = sort([acs_indices_z, nacs_indices_z(:,frame)']);
-    for z = z_locs
-        % Label the first block in each "unique" section with TRID (see Pulseq on GE manual)
+    % Label the first block in each segment with the TRID (see Pulseq on GE manual)
+    if isDummyFrame
         TRID = 1;
+    elseif isCalFrame
+        TRID = 2;
+    end
 
-        % Fat-sat
-        seq.addBlock(rfsat, mr.makeLabel('SET','TRID',TRID));
-        seq.addBlock(gxSpoil, gzSpoil);
+    % turn off kz encoding
+    gzPreTmp = mr.scaleGrad(gzPre, 0);
 
-        % RF spoiling
-        rf_phase = mod(0.5 * rf_phase_0 * rf_count^2, 360.0);
-        rf.phaseOffset = rf_phase/180*pi;
-        adc.phaseOffset = rf_phase/180*pi;
-        rf_count = rf_count + 1;
+    % Fat-sat
+    seq.addBlock(rfsat,mr.makeLabel('SET','TRID',TRID));
+    seq.addBlock(gxSpoil, gzSpoil);
 
-        % Slab-selective RF excitation + rephase
-        seq.addBlock(rf, gzSS);
-        seq.addBlock(gzSSR);
+    % RF spoiling
+    rf_phase = mod(0.5 * rf_phase * rf_count^2, 360.0);
+    rf.phaseOffset = rf_phase/180*pi;
+    adc.phaseOffset = rf_phase/180*pi;
+    rf_count = rf_count + 1;
+    
 
-        % TE delay
-        if TE > minTE
-            seq.addBlock(mr.makeDelay(TEdelay));
-        end
+    % Slab-selective RF excitation + rephase
+    seq.addBlock(rf,gzSS);
+    seq.addBlock(gzSSR);
 
-        % Infer caipi shifts from sampling mask
-        z_shifts = zeros(1, 2*round(Ny/Ry/2));
-        if ismember(z, nacs_indices_z(:,frame))
-            l = (caipi_z - 1) / 2; % caipi neighborhood "radius"
-            part = omega(:,z-l:z+l);
-            y_locs = find(sum(part,2));
-            for i = 1:length(y_locs)
-                z_shifts(i) = find(part(y_locs(i),:)) - l - 1;
-            end
-        else
-            y_locs = find(omega(:,z));
-        end
+    % TE delay
+    if TE > minTE
+        seq.addBlock(mr.makeDelay(TEdelay));
+    end
 
+    % fake ky encoding
         % Move to corner of k-space
-        gzPreTmp = mr.scaleGrad(gzPre, (z + z_shifts(1) - Nz/2 - 1)/(-Nz/2));
-        gyPreTmp = mr.scaleGrad(gyPre, (y_locs(1) - Ny/2 - 1)/(-Ny/2));
+        gyPreTmp = mr.scaleGrad(gyPre, 0); % turn off ky encoding
         seq.addBlock(gxPre, gyPreTmp, gzPreTmp);
-
-        % Begin ky encoding
+    
         % Zip through k-space with EPI trajectory
         seq.addBlock(gro1);
-        for iy = 1:(length(y_locs) - 1)
-            % Log sampling locations
-            samp_log(frame,samp_count,:) = [y_locs(iy); z + z_shifts(iy)];
-            samp_count = samp_count + 1;
-
-            % Sample
-            seq.addBlock(adc, mr.scaleGrad(gro, (-1)^(iy-1)),...
-                mr.scaleGrad(gyBlip, y_locs(iy + 1) - y_locs(iy)),...
-                mr.scaleGrad(gzBlip, z_shifts(iy + 1) - z_shifts(iy))...
-                );
+        for iy = 1:(2*ceil(Ny/Ry/2) - 1)
+            if isCalFrame
+                seq.addBlock(adc, mr.scaleGrad(gro, (-1)^(iy-1)),...
+                    mr.scaleGrad(gyBlip, 0));
+            else
+                seq.addBlock(mr.scaleGrad(gro, (-1)^(iy-1)),...
+                    mr.scaleGrad(gyBlip, 0));
+            end
         end
-
+    
         % Last line
-        % Log sampling locations
-        samp_log(frame,samp_count,:) = [y_locs(end); z + z_shifts(end)];
-        samp_count = samp_count + 1;
-
-        % Sample
-        seq.addBlock(adc, mr.scaleGrad(gro2, (-1)^iy));
-
-        % End ky encoding
-
-        % spoilers to reach the same point in k-space at the end of each TR
-        seq.addBlock(gxSpoil, ...
-            mr.scaleGrad(gySpoil, (gySpoil.area - (y_locs(end) - Ny/2)*deltak(2))/gySpoil.area), ...
-            mr.scaleGrad(gzSpoil, (gzSpoil.area - (z + z_shifts(end) - Nz/2)*deltak(3))/gzSpoil.area));
-
-        % Achieve desired TR
-        if TR > minTR
-            seq.addBlock(mr.makeDelay(TRdelay));
+        if isCalFrame
+            seq.addBlock(adc, mr.scaleGrad(gro2, (-1)^iy));
+        else
+            seq.addBlock(mr.scaleGrad(gro2, (-1)^iy));
         end
+    % end ky encoding
+
+    % spoil
+    seq.addBlock(gxSpoil, gzSpoil);
+
+    % Achieve desired TR
+    if TR > minTR
+        seq.addBlock(mr.makeDelay(TRdelay));
     end
 end
 
 %% Check sequence timing
-[ok, error_report] = seq.checkTiming;
+[ok, error_report]=seq.checkTiming;
 if (ok)
     fprintf('Timing check passed successfully\n');
-else        
+else
     fprintf('Timing check failed! Error listing follows:\n');
     fprintf([error_report{:}]);
     fprintf('\n');
 end
-
-%% Save sampling log for recon
-save('samp_log.mat','samp_log','-v7.3');
 
 %% Write to .seq file
 seq.setDefinition('FOV', fov);
@@ -299,28 +255,8 @@ system(sprintf('tar -xvf %s', strcat(seqname, '.tar')));
 
 return;
 
-%% Plot sequence
-figure;
-toppe.plotseq(sysGE, 'timeRange',[0, max(minTR, TR)]);
-fontsize(16,'points');
-
-return;
-
-%% Calculate and plot k-space trajectory
-[ktraj_adc, t_adc, ktraj, t_ktraj, t_excitation, t_refocusing] = seq.calculateKspacePP();
+%% Plot
 figure('WindowState','maximized');
-plot(ktraj(2,:),ktraj(3,:),'b'); % a 2D k-space plot
-axis('equal'); % enforce aspect ratio for the correct trajectory display
-hold; plot(ktraj_adc(2,:),ktraj_adc(3,:),'r.', 'MarkerSize', 10); % plot the sampling points
-title('full k-space trajectory (k_y x k_z)'); 
-xlabel('k_y'); ylabel('k_z');
-
-return;
-
-%% Detailed sequence report
-% Slow but useful for testing during development,
-% e.g., for the real TE, TR or for staying within slew rate limits
-rep = seq.testReport;
-fprintf([rep{[1:9, 11:end]}]); % print report except warnings
+toppe.plotseq(sysGE, 'timeRange', [0 (Ndummyframes + 1)*TR]);
 
 return;
