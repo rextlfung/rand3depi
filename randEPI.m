@@ -10,7 +10,7 @@ run('MRIsystem.m');
 run('EPIparams.m');
 
 % Temporary modifications
-% NframesPerLoop = 1; % Only one frame for plotting k-space trajectory
+NframesPerLoop = 12; % Only one frame for plotting k-space trajectory
 %% Path and options
 seqname = 'rand3Depi';
 
