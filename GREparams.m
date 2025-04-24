@@ -9,6 +9,9 @@ fov_gre = [21.6, 21.6, 21.6]*1e-2; % field of view (m)
 N_gre = round(fov_gre./res_gre); % acquisiton tensor size
 Nx_gre = N_gre(1); Ny_gre = N_gre(2); Nz_gre = N_gre(3);
 
+% Temporal parameters
+NdummyZloops = 4; % number of dummy excitations to reach steady state
+
 % Other acquisition params
 fatChemShift = 3.5e-6; % 3.5 ppm
 fatOffresFreq = sys.gamma*sys.B0*fatChemShift; % Hz

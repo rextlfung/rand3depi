@@ -15,5 +15,6 @@
 *.gif
 *.param
 *.h5
+*.pge
 .DS_Store
 rodrigo/*

@@ -10,16 +10,17 @@ run('MRIsystem.m');
 run('EPIparams.m');
 
 % Temporary modifications
-NframesPerLoop = 12; % Only one frame for plotting k-space trajectory
+NframesPerLoop = 1; % Only one frame for plotting k-space trajectory
 %% Path and options
 seqname = 'rand3Depi';
 
 %% Excitation pulse
 % Target a slightly thinner slice to alleviate aliasing
-[rf, gzSS, gzSSR] = mr.makeSincPulse(alpha/180*pi,...
+[rf, gzSS, gzSSR, delay] = mr.makeSincPulse(alpha/180*pi,...
                                      'duration',rfDur,...
                                      'sliceThickness',0.9*fov(3),...
-                                     'system',sys);
+                                     'system',sys,...
+                                     'use','excitation');
 gzSS = trap4ge(gzSS,CRT,sys);
 gzSS.delay = rf.delay - gzSS.riseTime; % Sync up rf pulse and slice select gradient
 gzSSR = trap4ge(gzSSR,CRT,sys);
@@ -46,7 +47,8 @@ flip_ang = fatsat.flip/180*pi;
 flipAssumed = abs(sum(rfp));
 rfsat = mr.makeArbitraryRf(rfp, ...
     flip_ang*abs(sum(rfp*sys.rfRasterTime))*(2*pi), ...
-    'system', sys);
+    'system', sys, ...
+    'use', 'saturation');
 rfsat.signal = rfsat.signal/max(abs(rfsat.signal))*max(abs(rfp)); % ensure correct amplitude (Hz)
 rfsat.freqOffset = -fatOffresFreq; % Hz
 
@@ -293,9 +295,28 @@ seq.write(strcat(seqname, '.seq'));
 % Shouldn't be a problem since I don't have back-to-back blocks with adc.
 sysGE.adcDeadTime = 0;
 
-% write to GE compatible filesresults
-seq2ge(strcat(seqname, '.seq'), sysGE, strcat(seqname, '.tar'))
-system(sprintf('tar -xvf %s', strcat(seqname, '.tar')));
+% tv6
+% seq2ge(strcat(seqname, '.seq'), sysGE, strcat(seqname, '.tar'))
+% system(sprintf('tar -xvf %s', strcat(seqname, '.tar')));
+
+% write to GE compatible files
+ceq = seq2ceq(strcat(seqname, '.seq'));
+
+% Define hardware parameters
+psd_rf_wait = 150e-6;  % RF-gradient delay, scanner specific (s)
+psd_grd_wait = 120e-6; % ADC-gradient delay, scanner specific (s)
+b1_max = 0.25;         % Gauss
+g_max = 5;             % Gauss/cm
+slew_max = 20;         % Gauss/cm/ms
+gamma = 4.2576e3;      % Hz/Gauss
+sys = pge2.getsys(psd_rf_wait, psd_grd_wait, b1_max, g_max, slew_max, gamma);
+
+% Check if 'ceq' is compatible with the parameters in 'sys'
+pge2.validate(ceq, sys);
+
+% Write Ceq object to file
+pislquant = 10;  % number of ADC events at start of scan for receive gain calibration
+writeceq(ceq, strcat(seqname, '.pge'), 'pislquant', pislquant);   % write Ceq struct to file
 
 return;
 

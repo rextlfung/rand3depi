@@ -33,15 +33,17 @@ flip_ang = fatsat.flip/180*pi;
 flipAssumed = abs(sum(rfp));
 rfsat = mr.makeArbitraryRf(rfp, ...
     flip_ang*abs(sum(rfp*sys.rfRasterTime))*(2*pi), ...
-    'system', sys);
+    'system', sys, ...
+    'use', 'saturation');
 rfsat.signal = rfsat.signal/max(abs(rfsat.signal))*max(abs(rfp)); % ensure correct amplitude (Hz)
 rfsat.freqOffset = -fatOffresFreq;  % Hz
 
 % Same slab-selective pulse as 3D EPI
-[rf, gzSS, gzSSR] = mr.makeSincPulse(alpha/180*pi,...
+[rf, gzSS, gzSSR, delay] = mr.makeSincPulse(alpha/180*pi,...
                                      'duration',rfDur,...
                                      'sliceThickness',fov_gre(3),...
-                                     'system',sys);
+                                     'system',sys,...
+                                     'use', 'excitation');
 gzSS = trap4ge(gzSS,CRT,sys);
 gzSSR = trap4ge(gzSSR,CRT,sys);
 
@@ -50,16 +52,16 @@ gzSSR = trap4ge(gzSSR,CRT,sys);
 deltak = 1./fov_gre;
 Tread = Nx_gre*dwell;
 
-commonRasterTime = 20e-6;   
+CRT = 20e-6;   
 
 gyPre = trap4ge(mr.makeTrapezoid('y', sys, ...
     'Area', Ny_gre*deltak(2)/2, ...   % PE1 gradient, max positive amplitude
     'Duration', Tpre), ...
-    commonRasterTime, sys);
+    CRT, sys);
 gzPre = trap4ge(mr.makeTrapezoid('z', sys, ...
     'Area', Nz_gre*deltak(3)/2, ...   % PE2 gradient, max amplitude
     'Duration', Tpre), ...
-    commonRasterTime, sys);
+    CRT, sys);
 
 gxtmp = mr.makeTrapezoid('x', sys, ...  % readout trapezoid, temporary object
     'Amplitude', Nx_gre*deltak(1)/Tread, ...
@@ -67,7 +69,7 @@ gxtmp = mr.makeTrapezoid('x', sys, ...  % readout trapezoid, temporary object
 gxPre = trap4ge(mr.makeTrapezoid('x', sys, ...
     'Area', -gxtmp.area/2, ...
     'Duration', Tpre), ...
-    commonRasterTime, sys);
+    CRT, sys);
 
 adc = mr.makeAdc(Nx_gre, sys, ...
     'Duration', Tread,...
@@ -77,15 +79,15 @@ adc = mr.makeAdc(Nx_gre, sys, ...
 gxtmp2 = trap4ge(mr.makeTrapezoid('x', sys, ...  % temporary object
     'Amplitude', Nx_gre*deltak(1)/Tread, ...
     'FlatTime', Tread + adc.deadTime), ...
-    commonRasterTime, sys);
+    CRT, sys);
 [gx, ~] = mr.splitGradientAt(gxtmp2, gxtmp2.riseTime + gxtmp2.flatTime);
-%gx = gxtmp;
+gx = gxtmp2;
 
 gzSpoil = mr.makeTrapezoid('z', sys, ...
     'Area', Nx_gre*deltak(1)*nCyclesSpoil);
-gxSpoil = mr.makeExtendedTrapezoidArea('x', gxtmp.amplitude, 0, gzSpoil.area, sys);
-%gxSpoil = mr.makeTrapezoid('x', sys, ...
-%    'Area', Nx_gre*deltak(1)*nCyclesSpoil);
+% gxSpoil = mr.makeExtendedTrapezoidArea('x', gxtmp.amplitude, 0, gzSpoil.area, sys);
+gxSpoil = mr.makeTrapezoid('x', sys, ...
+   'Area', Nx_gre*deltak(1)*nCyclesSpoil);
 
 %% y/z PE steps
 pe1Steps = ((0:Ny_gre-1)-Ny_gre/2)/Ny_gre*2;
@@ -105,13 +107,11 @@ delayTR = ceil((TR-TRmin)/seq.gradRasterTime)*seq.gradRasterTime;
 % iZ = 0: ADC is turned on and used for receive gain calibration on GE scanners
 % iZ > 0: Image acquisition
 
-nDummyZLoops = 4;
-
 % RF spoiling trackers
 rf_count = 1;
 
 lastmsg = [];
-for iZ = -nDummyZLoops:Nz_gre
+for iZ = -NdummyZloops:Nz_gre
     isDummyTR = iZ < 0;
 
     for ii = 1:length(lastmsg)
@@ -141,7 +141,7 @@ for iZ = -nDummyZLoops:Nz_gre
         % Excitation
         % Mark start of segment (block group) by adding label.
         % Subsequent blocks in block group are NOT labelled.
-        seq.addBlock(rf,gzSS);
+        seq.addBlock(rf, gzSS);
         seq.addBlock(gzSSR);
         
         % Encoding
@@ -176,11 +176,34 @@ end
 %% Output for execution
 seq.setDefinition('FOV', fov_gre);
 seq.setDefinition('Name', 'gre');
-seq.write('gre.seq');
+seq.write(strcat(seqname, '.seq'));
 
-%% Convert to .tar file for GE
-seq2ge('gre.seq', sysGE, 'gre.tar');
-system('tar -xvf gre.tar');
+%% Interpret to GE via TOPPE
+
+% tv6
+% seq2ge(strcat(seqname, '.seq'), sysGE, strcat(seqname, '.tar'))
+% system(sprintf('tar -xvf %s', strcat(seqname, '.tar')));
+
+% write to GE compatible files
+ceq = seq2ceq(strcat(seqname, '.seq'));
+
+% Define hardware parameters
+psd_rf_wait = 150e-6;  % RF-gradient delay, scanner specific (s)
+psd_grd_wait = 120e-6; % ADC-gradient delay, scanner specific (s)
+b1_max = 0.25;         % Gauss
+g_max = 5;             % Gauss/cm
+slew_max = 20;         % Gauss/cm/ms
+gamma = 4.2576e3;      % Hz/Gauss
+sys = pge2.getsys(psd_rf_wait, psd_grd_wait, b1_max, g_max, slew_max, gamma);
+
+% Check if 'ceq' is compatible with the parameters in 'sys'
+pge2.validate(ceq, sys);
+
+% Write Ceq object to file
+pislquant = 10;  % number of ADC events at start of scan for receive gain calibration
+writeceq(ceq, strcat(seqname, '.pge'), 'pislquant', pislquant);   % write Ceq struct to file
+
+return;
 
 return;
 %% Plot k-space trajectory

@@ -20,7 +20,7 @@ max_ky_step = round(Ny/16); % Maximum gap in fast PE direction
 Ndummyframes = 10; % dummy frames to reach steady state for calibration
 Nshots = ceil(length(1:caipi_z:(Nz - caipi_z + 1))/Rz); % Number of shots per volume
 minNframesPerLoop = lcm(40,Nshots)/Nshots; % number of temporal frames to complete one RF spoil cycle
-NframesPerLoop = 6*minNframesPerLoop % 19.2 seconds ~= 1 task cycle
+NframesPerLoop = 6*minNframesPerLoop; % 19.2 seconds ~= 1 task cycle
 
 % Decay parameters
 TE = 32e-3;                         % echo time (s)
