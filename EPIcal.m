@@ -186,7 +186,6 @@ for iz = -Ndummyframes:length(z_locs)
     rf.phaseOffset = rf_phase/180*pi;
     adc.phaseOffset = rf_phase/180*pi;
     rf_count = rf_count + 1;
-    
 
     % Slab-selective RF excitation + rephase
     seq.addBlock(rf,gzSS);

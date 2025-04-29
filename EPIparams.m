@@ -17,7 +17,6 @@ acs = [24 12] ./ [Ny Nz]; % Central portion of ky-kz space to fully sample
 max_ky_step = round(Ny/16); % Maximum gap in fast PE direction
 
 % Temporal parameters
-Ndummyframes = 10; % dummy frames to reach steady state for calibration
 Nshots = ceil(length(1:caipi_z:(Nz - caipi_z + 1))/Rz); % Number of shots per volume
 minNframesPerLoop = lcm(40,Nshots)/Nshots; % number of temporal frames to complete one RF spoil cycle
 NframesPerLoop = 6*minNframesPerLoop; % 19.2 seconds ~= 1 task cycle
@@ -27,6 +26,9 @@ TE = 32e-3;                         % echo time (s)
 volumeTR = 1.6;                     % temporal frame rate (s)
 TR = volumeTR / Nshots;             % repetition time (s)
 T1 = 1500e-3;                       % T1 (s)
+
+% Dummy parameters
+Ndummyframes = round(3*T1/TR); % dummy frames to reach steady state for calibration
 
 % Exciting stuff
 alpha = 180/pi * acos(exp(-TR/T1)); % Ernst angle (degrees)
