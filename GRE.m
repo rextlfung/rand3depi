@@ -194,16 +194,13 @@ b1_max = 0.25;         % Gauss
 g_max = 5;             % Gauss/cm
 slew_max = 20;         % Gauss/cm/ms
 gamma = 4.2576e3;      % Hz/Gauss
-sys = pge2.getsys(psd_rf_wait, psd_grd_wait, b1_max, g_max, slew_max, gamma);
 
 % Check if 'ceq' is compatible with the parameters in 'sys'
-pge2.validate(ceq, sys);
+pge2.validate(ceq, pge2.getsys(psd_rf_wait, psd_grd_wait, b1_max, g_max, slew_max, gamma));
 
 % Write Ceq object to file
 pislquant = 10;  % number of ADC events at start of scan for receive gain calibration
 writeceq(ceq, strcat(seqname, '.pge'), 'pislquant', pislquant);   % write Ceq struct to file
-
-return;
 
 return;
 %% Plot k-space trajectory
@@ -215,6 +212,7 @@ hold;plot(ktraj_adc(1,:),ktraj_adc(2,:),'r.'); % plot the sampling points
 title('full k-space trajectory (k_x x k_y)');
 
 return;
+
 %% Optional slow step, but useful for testing during development,
 % e.g., for the real TE, TR or for staying within slewrate limits
 rep = seq.testReport;

@@ -265,10 +265,9 @@ b1_max = 0.25;         % Gauss
 g_max = 5;             % Gauss/cm
 slew_max = 20;         % Gauss/cm/ms
 gamma = 4.2576e3;      % Hz/Gauss
-sys = pge2.getsys(psd_rf_wait, psd_grd_wait, b1_max, g_max, slew_max, gamma);
 
 % Check if 'ceq' is compatible with the parameters in 'sys'
-pge2.validate(ceq, sys);
+pge2.validate(ceq, pge2.getsys(psd_rf_wait, psd_grd_wait, b1_max, g_max, slew_max, gamma));
 
 % Write Ceq object to file
 pislquant = 10;  % number of ADC events at start of scan for receive gain calibration
@@ -279,5 +278,13 @@ return;
 %% Plot
 figure('WindowState','maximized');
 toppe.plotseq(sysGE, 'timeRange', [0 (Ndummyframes + 1)*TR]);
+
+return;
+
+%% Detailed sequence report
+% Slow but useful for testing during development,
+% e.g., for the real TE, TR or for staying within slew rate limits
+rep = seq.testReport;
+fprintf([rep{[1:9, 11:end]}]); % print report except warnings
 
 return;
