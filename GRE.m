@@ -194,15 +194,25 @@ b1_max = 0.25;         % Gauss
 g_max = 5;             % Gauss/cm
 slew_max = 20;         % Gauss/cm/ms
 gamma = 4.2576e3;      % Hz/Gauss
+sysPGE2 = pge2.getsys(psd_rf_wait, psd_grd_wait, b1_max, g_max, slew_max, gamma);
 
 % Check if 'ceq' is compatible with the parameters in 'sys'
-pge2.validate(ceq, pge2.getsys(psd_rf_wait, psd_grd_wait, b1_max, g_max, slew_max, gamma));
+pge2.validate(ceq, sysPGE2);
 
 % Write Ceq object to file
 pislquant = 10;  % number of ADC events at start of scan for receive gain calibration
 writeceq(ceq, strcat(seqname, '.pge'), 'pislquant', pislquant);   % write Ceq struct to file
 
+%% Plot
+figure('WindowState','maximized');
+% tv6
+% toppe.plotseq(sysGE, 'timeRange', [0 (Ndummyframes + 1)*TR]);
+
+% tv7/pge2
+S = pge2.constructvirtualsegment(ceq.segments(1).blockIDs, ceq.parentBlocks, sysPGE2, true);
+
 return;
+
 %% Plot k-space trajectory
 [ktraj_adc, t_adc, ktraj, t_ktraj, t_excitation, t_refocusing] = seq.calculateKspacePP();
 figure('WindowState','maximized');
