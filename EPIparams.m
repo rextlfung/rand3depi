@@ -10,16 +10,16 @@ fov = N .* res; % field of view (m)
 Nx = N(1); Ny = N(2); Nz = N(3);
 
 % Random undersampling parameters. Total acceleration = Ry*Rz*caipi_z
-Ry = 2; Rz = 1; % Acceleration/undersampling factors in each direction
+Ry = sqrt(3); Rz = sqrt(3); % Acceleration/undersampling factors in each direction
 caipi_z = 3; % Number of kz locations to acquire per shot. Must be odd.
 R = [Ry Rz];
-acs = [24 12] ./ [Ny Nz]; % Central portion of ky-kz space to fully sample
+acs = [18 12] ./ [Ny Nz]; % Central portion of ky-kz space to fully sample
 max_ky_step = round(Ny/16); % Maximum gap in fast PE direction
 
 % Temporal parameters
 Nshots = ceil(length(1:caipi_z:(Nz - caipi_z + 1))/Rz); % Number of shots per volume
 minNframesPerLoop = lcm(40,Nshots)/Nshots; % number of temporal frames to complete one RF spoil cycle
-NframesPerLoop = 6*minNframesPerLoop; % 19.2 seconds ~= 1 task cycle
+NframesPerLoop = minNframesPerLoop; % 19.2 seconds ~= 1 task cycle
 
 % Decay parameters
 TE = 32e-3;                         % echo time (s)

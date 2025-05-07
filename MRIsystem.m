@@ -21,7 +21,7 @@ sys = mr.opts('maxGrad', 40, 'gradUnit','mT/m', ...
               'blockDurationRaster', 4e-6, ...
               'B0', 3.0);
 
-% Create GE MRI system
+% Create GE MRI system (for tv6)
 sysGE = toppe.systemspecs('maxGrad', sys.maxGrad/sys.gamma*100, ...   % G/cm
     'maxSlew', sys.maxSlew/sys.gamma/10, ...           % G/cm/ms
     'maxRF', 0.25);
