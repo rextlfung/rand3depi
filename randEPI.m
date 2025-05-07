@@ -339,6 +339,47 @@ xlabel('k_y'); ylabel('k_z');
 
 return;
 
+%% Only plot trajectories stringing together samples (ChatGPT)
+[ktraj_adc, t_adc, ktraj, t_ktraj, t_excitation, t_refocusing] = seq.calculateKspacePP();
+
+figure('WindowState','maximized');
+hold on;
+
+% Loop over each excitation
+for i = 1:length(t_excitation)
+    t_start = t_excitation(i);
+    
+    % Use end of current excitation or end of ADC window
+    if i < length(t_excitation)
+        t_end = t_excitation(i+1);
+    else
+        t_end = t_adc(end) + 1e-6;  % Small buffer
+    end
+
+    % Find ADC times within this excitation window
+    adc_mask = t_adc >= t_start & t_adc < t_end;
+    t_adc_segment = t_adc(adc_mask);
+
+    % Map ADC times to indices in t_ktraj
+    adc_indices = arrayfun(@(t) find(abs(t_ktraj - t) < 1e-9, 1, 'first'), t_adc_segment);
+
+    % Extract corresponding k-space trajectory points
+    ktraj_segment = ktraj(:, adc_indices);
+
+    % Plot this segment as a separate line
+    if ~isempty(ktraj_segment)
+        plot(ktraj_segment(2,:), ktraj_segment(3,:), 'b', 'LineWidth', 1.5);
+    end
+end
+
+plot(ktraj_adc(2,:), ktraj_adc(3,:),'r.', 'MarkerSize', 10); % plot the sampling points
+
+axis equal;
+title('k-space trajectory per excitation (k_y x k_z)', 'FontSize', 18);
+xlabel('k_y', 'FontSize', 18); ylabel('k_z', 'FontSize', 18);
+
+return;
+
 %% Detailed sequence report
 % Slow but useful for testing during development,
 % e.g., for the real TE, TR or for staying within slew rate limits
