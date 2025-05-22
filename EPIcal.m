@@ -165,7 +165,7 @@ z_locs = 1:caipi_z:(Nz - caipi_z + 1);
 for iz = -Ndummyframes:length(z_locs)
     % Convenience booleans for turning off adc
     isDummyFrame = iz < 0;
-    isCalFrame = iz >= 0;
+    isCalFrame = iz > 0;
 
     % Label the first block in each segment with the TRID (see Pulseq on GE manual)
     if isDummyFrame
