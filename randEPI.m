@@ -29,7 +29,7 @@ gzSSR = trap4ge(gzSSR,CRT,sys);
 fatsat.flip    = 90;      % degrees
 fatsat.slThick = 1e5;     % dummy value (determines slice-select gradient, but we won't use it; just needs to be large to reduce dead time before+after rf pulse)
 fatsat.tbw     = 3;       % time-bandwidth product
-fatsat.dur     = 6.0;     % pulse duration (ms)
+fatsat.dur     = 4.0;     % pulse duration (ms)
 
 % RF waveform in Gauss
 wav = toppe.utils.rf.makeslr(fatsat.flip, fatsat.slThick, fatsat.tbw, fatsat.dur, 1e-6, toppe.systemspecs(), ...
@@ -220,11 +220,11 @@ for frame = 1:NframesPerLoop
         % Infer caipi shifts from sampling mask
         z_shifts = zeros(1, 2*round(Ny/Ry/2));
         if ismember(z, nacs_indices_z(:,frame))
-            l = (caipi_z - 1) / 2; % caipi neighborhood "radius"
-            part = omega(:,z-l:z+l);
+            caipi_z_range = (1:caipi_z) - round(caipi_z/2); % Compute range of caipi shifts
+            part = omega(:,z + caipi_z_range);
             y_locs = find(sum(part,2));
             for i = 1:length(y_locs)
-                z_shifts(i) = find(part(y_locs(i),:)) - l - 1;
+                z_shifts(i) = find(part(y_locs(i),:)) - 1;
             end
         else
             y_locs = find(omega(:,z));

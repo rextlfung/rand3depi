@@ -57,8 +57,11 @@ function [omega, acs_indices_z, nacs_indices_samp_z] = randsamp2dcaipi(N, R, acs
            'sampling weights vectors must be equal to dimensions Ny Nz');
     assert(max_ky_step >= 1, ...
            'max_ky_step must be >= 1');
-    assert(caipi_z >= 1 && mod(caipi_z, 2) == 1, ...
-           'caipi_z must be >= 1 and odd-valued');
+    assert(round(caipi_z) == caipi_z && caipi_z >= 1, ...
+           'caipi_z must be an integer >= 1');
+
+    % Compute range of caipi shifts
+    caipi_z_range = (1:caipi_z) - round(caipi_z/2);
 
     % Compute number of ACS lines (even about ky = 0)
     Ny_acs = 2*round(acs_y*Ny/2);
@@ -71,8 +74,8 @@ function [omega, acs_indices_z, nacs_indices_samp_z] = randsamp2dcaipi(N, R, acs
     nacs_indices_y = [1:(acs_indices_y(1) - 1);
                       (acs_indices_y(end) + 1):Ny];
     % Prevent caipi shifts from hitting ACS region or outside [1, Nz]
-    nacs_indices_z = [ceil(caipi_z/2):(acs_indices_z(1) - ceil(caipi_z/2)), ...
-                      (acs_indices_z(end) + ceil(caipi_z/2)):Nz - ceil(caipi_z/2) + 1];
+    nacs_indices_z = [(1 + -caipi_z_range(1)):(acs_indices_z(1) - 1 - caipi_z_range(end)), ...
+                      (acs_indices_z(end) + 1 + -caipi_z_range(1)):(Nz - caipi_z_range(end))];
 
     % Compute the number of non-ACS locations to sample based on R
     Ny_nacs = 2*round((Ny/Ry - Ny_acs)/2); % Ensure even number
