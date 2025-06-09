@@ -6,8 +6,7 @@
 % Rex Fung
 
 %% Define experiment parameters
-run('MRIsystem.m');
-run('EPIparams.m');
+run('params.m');
 
 % Temporary modifications
 % NframesPerLoop = 1; % Only one frame for plotting k-space trajectory

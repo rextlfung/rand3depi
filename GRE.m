@@ -3,8 +3,7 @@
 % Acquires a larger FOV than EPI, then crops to match
 
 %% Define experiment parameters
-run('MRIsystem.m');
-run('GREparams.m');
+run('params.m');
 
 %% Path and options
 seqname = 'GRE';

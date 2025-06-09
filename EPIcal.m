@@ -6,8 +6,7 @@
 % 2. Collect data used for EPI ghost correciton
 
 %% Define experiment parameters
-run('MRIsystem.m');
-run('EPIparams.m');
+run('params.m');
 
 %% Path and options
 seqname = 'EPIcal';
