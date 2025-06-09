@@ -23,7 +23,7 @@ NframesPerLoop = minNframesPerLoop; % 19.2 seconds ~= 1 task cycle
 
 % Decay parameters
 TE = 30e-3;                         % echo time (s)
-volumeTR = 0.8;                     % temporal frame rate (s)
+volumeTR = 0.87;                     % temporal frame rate (s)
 TR = volumeTR / Nshots;             % repetition time (s)
 T1 = 1500e-3;                       % T1 (s)
 
@@ -40,3 +40,7 @@ NcyclesSpoil = 2;                   % number of Gx and Gz spoiler cycles
 % Fat saturation
 fatChemShift = 3.5*1e-6;                        % 3.5 ppm
 fatOffresFreq = sys.gamma*sys.B0*fatChemShift;  % Hz
+fatsat.flip    = 90;      % degrees
+fatsat.slThick = 1e5;     % dummy value (determines slice-select gradient, but we won't use it; just needs to be large to reduce dead time before+after rf pulse)
+fatsat.tbw     = 3;       % time-bandwidth product
+fatsat.dur     = 4.0;     % pulse duration (ms)

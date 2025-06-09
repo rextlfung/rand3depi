@@ -26,10 +26,6 @@ gzSS.delay = rf.delay - gzSS.riseTime; % Sync up rf pulse and slice select gradi
 gzSSR = trap4ge(gzSSR,CRT,sys);
 
 %% Fat-sat
-fatsat.flip    = 90;      % degrees
-fatsat.slThick = 1e5;     % dummy value (determines slice-select gradient, but we won't use it; just needs to be large to reduce dead time before+after rf pulse)
-fatsat.tbw     = 3;       % time-bandwidth product
-fatsat.dur     = 4.0;     % pulse duration (ms)
 
 % RF waveform in Gauss
 wav = toppe.utils.rf.makeslr(fatsat.flip, fatsat.slThick, fatsat.tbw, fatsat.dur, 1e-6, toppe.systemspecs(), ...
@@ -319,11 +315,14 @@ pislquant = 10;  % number of ADC events at start of scan for receive gain calibr
 writeceq(ceq, strcat(seqname, '.pge'), 'pislquant', pislquant);   % write Ceq struct to file
 
 %% Plot
-figure('WindowState','maximized');
+% pluseq
+seq.plot('timeRange', [0 max(minTR, TR)]);
+
 % tv6
 % toppe.plotseq(sysGE, 'timeRange', [0 (Ndummyframes + 1)*TR]);
 
 % tv7/pge2
+figure;
 S = pge2.constructvirtualsegment(ceq.segments(1).blockIDs, ceq.parentBlocks, sysPGE2, true);
 
 return;
