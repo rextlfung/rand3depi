@@ -10,6 +10,7 @@ run('params.m');
 
 % Temporary modifications
 % NframesPerLoop = 1; % Only one frame for plotting k-space trajectory
+
 %% Path and options
 seqname = 'rand3Depi';
 
@@ -280,6 +281,13 @@ end
 %% Save sampling log for recon
 save('samp_log.mat','samp_log','-v7.3');
 
+%% Save k-space trajectory for EPI ghost correction
+[ktraj_adc, t_adc, ktraj, t_ktraj, t_excitation, t_refocusing] = seq.calculateKspacePP();
+kxo = ktraj_adc(1, 1:Nfid);
+kxe = ktraj_adc(1, Nfid+1:Nfid*2);
+
+save(sprintf('kxoe%d.mat', Nx),'kxo','kxe','-v7.3');
+
 %% Write to .seq file
 seq.setDefinition('FOV', fov);
 seq.setDefinition('Name', seqname);
@@ -327,7 +335,6 @@ S = pge2.constructvirtualsegment(ceq.segments(1).blockIDs, ceq.parentBlocks, sys
 return;
 
 %% Calculate and plot k-space trajectory
-[ktraj_adc, t_adc, ktraj, t_ktraj, t_excitation, t_refocusing] = seq.calculateKspacePP();
 figure('WindowState','maximized');
 plot(ktraj(2,:),ktraj(3,:),'b'); % a 2D k-space plot
 axis('equal'); % enforce aspect ratio for the correct trajectory display
@@ -338,8 +345,6 @@ xlabel('k_y'); ylabel('k_z');
 return;
 
 %% Only plot trajectories stringing together samples (ChatGPT)
-[ktraj_adc, t_adc, ktraj, t_ktraj, t_excitation, t_refocusing] = seq.calculateKspacePP();
-
 figure('WindowState','maximized');
 hold on;
 

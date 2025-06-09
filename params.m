@@ -35,28 +35,31 @@ dwell = 4e-6; % s
 %% Scan parameters for echo-planar imaging (EPI) sequence
 
 % Spatial parameters
-res = [1.8 1.8 1.8]*1e-3; % resolution (m)
-N = [120 120 80]; % acquisition tensor size
+res = [2.4 2.4 2.4]*1e-3; % resolution (m)
+N = [90 90 20]; % acquisition tensor size
 fov = N .* res; % field of view (m)
 Nx = N(1); Ny = N(2); Nz = N(3);
 
 % Random undersampling parameters. Total acceleration = Ry*Rz*caipi_z
-Ry = 2; Rz = 3; % Acceleration/undersampling factors in each direction
-caipi_z = 2; % Number of kz locations to acquire per shot. Must be positive integer
+Ry = 1; Rz = 1; % Acceleration/undersampling factors in each direction
+caipi_z = 1; % Number of kz locations to acquire per shot. Must be positive integer
 R = [Ry Rz];
 acs = [0.1 0.1]; % Central portion of ky-kz space to fully sample
 max_ky_step = round(Ny/16); % Maximum gap in fast PE direction
 
 % Temporal parameters
 Nshots = ceil(length(1:caipi_z:(Nz - caipi_z + 1))/Rz); % Number of shots per volume
-minNframesPerLoop = lcm(40,Nshots)/Nshots; % number of temporal frames to complete one RF spoil cycle
-NframesPerLoop = minNframesPerLoop; % 19.2 seconds ~= 1 task cycle
 
 % Decay parameters
 TE = 30e-3;                         % echo time (s)
-volumeTR = 0.87;                     % temporal frame rate (s)
+volumeTR = 1.6;                     % temporal frame rate (s)
 TR = volumeTR / Nshots;             % repetition time (s)
 T1 = 1500e-3;                       % T1 (s)
+
+% Number of frames to write in sequence, which is then looped on the scanner
+minNframesPerLoop = lcm(40,Nshots)/Nshots; % number of temporal frames to complete one RF spoil cycle
+task_period = 20; % block experiment duration
+NframesPerLoop = round(task_period/volumeTR/minNframesPerLoop)*minNframesPerLoop;
 
 % Dummy parameters
 Ndummyframes = round(3*T1/TR); % dummy frames to reach steady state for calibration
@@ -88,15 +91,12 @@ Nx_gre = N_gre(1); Ny_gre = N_gre(2); Nz_gre = N_gre(3);
 NdummyZloops = 4; % number of dummy excitations to reach steady state
 
 % Other acquisition params
-fatChemShift = 3.5e-6; % 3.5 ppm
-fatOffresFreq = sys.gamma*sys.B0*fatChemShift; % Hz
-TE = 1/fatOffresFreq + 2e-4; % fat and water in phase for both echoes
-TR = 6e-3; % constant TR
-T1 = 1500e-3; % approximate T1
-alpha = 180/pi*acos(exp(-TR/T1)); % flip angle (degrees)
+TE_gre = 1/fatOffresFreq + 2e-4; % fat and water in phase for both echoes
+TR_gre = 6e-3; % constant TR
+T1_gre = 1500e-3; % approximate T1
+alpha_gre = 180/pi*acos(exp(-TR_gre/T1_gre)); % flip angle (degrees)
 
 % Sequence parameters
-rfDur = 0.4e-3;  % RF duration
-rf_phase_0 = 117; % RF spoiling initial phase (degrees)
+rfDur_gre = 0.4e-3;  % RF duration
 nCyclesSpoil = 2; % number of spoiler cycles
 Tpre = 1.0e-3; % prephasing trapezoid duration
