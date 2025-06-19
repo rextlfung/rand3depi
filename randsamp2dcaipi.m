@@ -71,11 +71,22 @@ function [omega, acs_indices_z, nacs_indices_samp_z] = randsamp2dcaipi(N, R, acs
     acs_indices_y = round(Ny/2) + ((-floor(Ny_acs/2) + 1):ceil(Ny_acs/2));
     acs_indices_z = round(Nz/2) + ((-floor(Nz_acs/2) + 1):ceil(Nz_acs/2));
     % Split into halves for evenness
-    nacs_indices_y = [1:(acs_indices_y(1) - 1);
-                      (acs_indices_y(end) + 1):Ny];
-    % Prevent caipi shifts from hitting ACS region or outside [1, Nz]
-    nacs_indices_z = [(1 + -caipi_z_range(1)):(acs_indices_z(1) - 1 - caipi_z_range(end)), ...
-                      (acs_indices_z(end) + 1 + -caipi_z_range(1)):(Nz - caipi_z_range(end))];
+    if acs_y > 0
+        nacs_indices_y = [1:(acs_indices_y(1) - 1);
+                          (acs_indices_y(end) + 1):Ny];
+    else
+        nacs_indices_y = [1:round(Ny/2);
+                          (round(Ny/2) + 1):Ny];
+    end
+
+    if acs_z > 0
+        % Prevent caipi shifts from hitting ACS region or outside [1, Nz]
+        nacs_indices_z = [(1 + -caipi_z_range(1)):(acs_indices_z(1) - 1 - caipi_z_range(end)), ...
+                          (acs_indices_z(end) + 1 + -caipi_z_range(1)):(Nz - caipi_z_range(end))];
+    else
+        nacs_indices_z = [(1 + -caipi_z_range(1)):(round(Nz/2) - caipi_z_range(end)), ...
+                          (round(Nz/2) + -caipi_z_range(1) + 1):(Nz - caipi_z_range(end))];
+    end
 
     % Compute the number of non-ACS locations to sample based on R
     Ny_nacs = 2*round((Ny/Ry - Ny_acs)/2); % Ensure even number
