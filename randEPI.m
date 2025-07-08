@@ -9,7 +9,7 @@
 run('params.m');
 
 % Temporary modifications
-% NframesPerLoop = 1; % Only one frame for plotting k-space trajectory
+NframesPerLoop = 1; % Only one frame for plotting k-space trajectory
 
 %% Path and options
 seqname = 'rand3Depi';
@@ -136,7 +136,7 @@ gzSpoil = trap4ge(mr.scaleGrad(...
 minTE = 0.5*mr.calcDuration(rf)...
       + mr.calcDuration(gzSSR)...
       + max([mr.calcDuration(gxPre), mr.calcDuration(gyPre), mr.calcDuration(gzPre)])...
-      + (2*ceil(Ny/Ry/2)/2 - 0.5) * mr.calcDuration(gro);
+      + (2*round(Ny/Ry/2)/2 - 0.5) * mr.calcDuration(gro);
 if TE >= minTE
     TEdelay = floor((TE - minTE)/sys.blockDurationRaster) * sys.blockDurationRaster;
 else
@@ -152,9 +152,8 @@ minTR = mr.calcDuration(rfsat)...
       + mr.calcDuration(gzSSR)...
       + TEdelay...
       + max([mr.calcDuration(gxPre), mr.calcDuration(gyPre), mr.calcDuration(gzPre)])...
-      + 2*ceil(Ny/Ry/2) * mr.calcDuration(gro)...
-      + mr.calcDuration(gzPre)...
-      + max([mr.calcDuration(gxSpoil), mr.calcDuration(gzSpoil)]);
+      + 2*round(Ny/Ry/2) * mr.calcDuration(gro)...
+      + max([mr.calcDuration(gxSpoil), mr.calcDuration(gySpoil), mr.calcDuration(gzSpoil)]);
 if TR >= minTR
     TRdelay = floor((TR - minTR)/sys.blockDurationRaster)*sys.blockDurationRaster;
 else
@@ -256,9 +255,9 @@ for frame = 1:NframesPerLoop
 
         % End ky encoding
 
-        % spoilers to reach the same point in k-space at the end of each TR
+        % Gx, Gz spoilers. Gy rewinder gradients
         seq.addBlock(gxSpoil, ...
-            mr.scaleGrad(gySpoil, (gySpoil.area - (y_locs(end) - Ny/2)*deltak(2))/gySpoil.area), ...
+            mr.scaleGrad(gySpoil, -(y_locs(end) - Ny/2 - 1)*deltak(2)/gySpoil.area), ...
             mr.scaleGrad(gzSpoil, (gzSpoil.area - (z + z_shifts(end) - Nz/2)*deltak(3))/gzSpoil.area));
 
         % Achieve desired TR
@@ -321,10 +320,11 @@ pge2.validate(ceq, sysPGE2);
 pislquant = 10;  % number of ADC events at start of scan for receive gain calibration
 writeceq(ceq, strcat(seqname, '.pge'), 'pislquant', pislquant);   % write Ceq struct to file
 
-%% Plot
-% pluseq
+%% Plot in pulseq
 seq.plot('timeRange', [0 max(minTR, TR)]);
+return;
 
+%% Plot in TOPPE
 % tv6
 % toppe.plotseq(sysGE, 'timeRange', [0 (Ndummyframes + 1)*TR]);
 
@@ -378,8 +378,8 @@ end
 plot(ktraj_adc(2,:), ktraj_adc(3,:),'r.', 'MarkerSize', 10); % plot the sampling points
 
 axis equal;
-title('k-space trajectory per excitation (k_y x k_z)', 'FontSize', 18);
-xlabel('k_y', 'FontSize', 18); ylabel('k_z', 'FontSize', 18);
+title(sprintf('Random 3D-EPI trajectory. R = %d', round(Ry*Rz*caipi_z)), 'FontSize', 18);
+xlabel('k_y (m^{-1})', 'FontSize', 18); ylabel('k_z (m^{-1})', 'FontSize', 18);
 
 return;
 
