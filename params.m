@@ -42,17 +42,18 @@ Nx = N(1); Ny = N(2); Nz = N(3);
 
 % Random undersampling parameters. Total acceleration = Ry*Rz*caipi_z
 Ry = 2; Rz = 2; % Acceleration/undersampling factors in each direction
-caipi_z = 4; % Number of kz locations to acquire per shot. Must be positive integer
+caipi_z = 3; % Number of kz locations to acquire per shot. Must be positive integer
 R = [Ry Rz];
 acs = [0 0]; % Central portion of ky-kz space to fully sample
 max_ky_step = round(Ny/16); % Maximum gap in fast PE direction
+max_kz_step = (caipi_z - 1); % Maximum possible jump in slow PE direction
 
 % Temporal parameters
 Nshots = ceil(length(1:caipi_z:(Nz - caipi_z + 1))/Rz); % Number of shots per volume
 
 % Decay parameters
 TE = 30e-3;                         % echo time (s)
-volumeTR = 0.8;                     % temporal frame rate (s)
+volumeTR = 1;                     % temporal frame rate (s)
 TR = volumeTR / Nshots;             % repetition time (s)
 T1 = 1500e-3;                       % T1 (s)
 

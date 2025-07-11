@@ -12,7 +12,7 @@ run('params.m');
 NframesPerLoop = 1; % Only one frame for plotting k-space trajectory
 
 %% Path and options
-seqname = 'rand3Depi';
+seqname = 'randEPI';
 
 %% Excitation pulse
 % Target a slightly thinner slice to alleviate aliasing
@@ -64,6 +64,7 @@ for frame = 1:NframesPerLoop
      nacs_indices_z(:,frame)] ...
      = randsamp2dcaipi(N(2:end), R, acs, weights_y, weights_z, max_ky_step, caipi_z);
 end
+
 %% Define readout gradients and ADC event
 % The Pulseq toolbox really shines here!
 
@@ -71,36 +72,39 @@ end
 deltak = 1./fov;
 
 % Start with the blips. Ensure long enough to support the largest blips
-gyBlip = mr.scaleGrad(mr.makeTrapezoid('y', sys, 'area', max_ky_step*deltak(2)), 1/max_ky_step);
+gyBlip = mr.makeTrapezoid('y', sys, 'area', max_ky_step*deltak(2));
+gyBlip = mr.scaleGrad(gyBlip, 1/max_ky_step, sys);
 gyBlip = trap4ge(gyBlip,CRT,sys);
 if caipi_z > 1
-    gzBlip = mr.scaleGrad(mr.makeTrapezoid('z', sys, 'area', (caipi_z - 1)*deltak(3)), 1/(caipi_z - 1));
-else
-    gzBlip = mr.scaleGrad(mr.makeTrapezoid('z', sys, 'area', (caipi_z - 1)*deltak(3)), 1);
+    gzBlip = mr.makeTrapezoid('z', sys, 'area', max_kz_step*deltak(3));
+    gzBlip = mr.scaleGrad(gzBlip, 1/max_kz_step, sys);
+elseif caipi_z == 1
+    gzBlip = mr.makeTrapezoid('z', sys, 'area', 0);
 end
 gzBlip = trap4ge(gzBlip,CRT,sys);
 
-% Area and duration of the longest blip (in y or z)
+% Match blip durations
 if mr.calcDuration(gyBlip) > mr.calcDuration(gzBlip) % biggest blip in y
     maxBlipArea = max_ky_step*deltak(2);
     blipDuration = mr.calcDuration(gyBlip);
-
-    % Remake the other blips to match duration
-    gzBlip = mr.makeTrapezoid('z', sys, 'area', deltak(3), 'duration', blipDuration);
-    % gzBlip = trap4ge(gzBlip,CRT,sys);
+    if caipi_z > 1
+        gzBlip = mr.makeTrapezoid('z', sys, 'area', max_kz_step*deltak(3), 'duration', blipDuration);
+        gzBlip = mr.scaleGrad(gzBlip, 1/max_kz_step, sys);
+    elseif caipi_z == 1
+        gzBlip = mr.makeTrapezoid('z', sys, 'area', 0);
+    end
 else % biggest blip in z
-    maxBlipArea = (caipi_z - 1)*deltak(3);
+    maxBlipArea = max_kz_step*deltak(3);
     blipDuration = mr.calcDuration(gzBlip);
-
-    % Remake the other blips to match duration
-    gyBlip = mr.makeTrapezoid('y', sys, 'area', deltak(2), 'duration', blipDuration);
-    % gyBlip = trap4ge(gyBlip,CRT,sys);
+    gyBlip = mr.makeTrapezoid('y', sys, 'area', max_ky_step*deltak(2));
+    gyBlip = mr.scaleGrad(gyBlip, 1/max_ky_step, sys);
 end
 
 % Readout trapezoid
 systmp = sys;
 systmp.maxGrad = deltak(1)/dwell;  % to ensure Nyquist sampling
-gro = trap4ge(mr.makeTrapezoid('x', systmp, 'Area', Nx*deltak(1) + maxBlipArea),CRT,sys);
+gro = mr.makeTrapezoid('x', systmp, 'Area', Nx*deltak(1) + maxBlipArea);
+gro = trap4ge(gro,CRT,sys);
 
 % Circularly shift gro waveform to contain blips within each block
 [gro1, gro2] = mr.splitGradientAt(gro, blipDuration/2);
@@ -322,29 +326,8 @@ writeceq(ceq, strcat(seqname, '.pge'), 'pislquant', pislquant);   % write Ceq st
 
 %% Plot in pulseq
 seq.plot('timeRange', [0 max(minTR, TR)]);
-return;
 
-%% Plot in TOPPE
-% tv6
-% toppe.plotseq(sysGE, 'timeRange', [0 (Ndummyframes + 1)*TR]);
-
-% tv7/pge2
-figure;
-S = pge2.constructvirtualsegment(ceq.segments(1).blockIDs, ceq.parentBlocks, sysPGE2, true);
-
-return;
-
-%% Calculate and plot k-space trajectory
-figure('WindowState','maximized');
-plot(ktraj(2,:),ktraj(3,:),'b'); % a 2D k-space plot
-axis('equal'); % enforce aspect ratio for the correct trajectory display
-hold; plot(ktraj_adc(2,:),ktraj_adc(3,:),'r.', 'MarkerSize', 10); % plot the sampling points
-title('full k-space trajectory (k_y x k_z)'); 
-xlabel('k_y'); ylabel('k_z');
-
-return;
-
-%% Only plot trajectories stringing together samples (ChatGPT)
+%% Plot trajectories stringing together samples (ChatGPT)
 figure('WindowState','maximized');
 hold on;
 
@@ -380,6 +363,26 @@ plot(ktraj_adc(2,:), ktraj_adc(3,:),'r.', 'MarkerSize', 10); % plot the sampling
 axis equal;
 title(sprintf('Random 3D-EPI trajectory. R = %d', round(Ry*Rz*caipi_z)), 'FontSize', 18);
 xlabel('k_y (m^{-1})', 'FontSize', 18); ylabel('k_z (m^{-1})', 'FontSize', 18);
+
+return;
+
+%% Plot in TOPPE
+% tv6
+% toppe.plotseq(sysGE, 'timeRange', [0 (Ndummyframes + 1)*TR]);
+
+% tv7/pge2
+figure;
+S = pge2.constructvirtualsegment(ceq.segments(1).blockIDs, ceq.parentBlocks, sysPGE2, true);
+
+return;
+
+%% Calculate and plot k-space trajectory
+figure('WindowState','maximized');
+plot(ktraj(2,:),ktraj(3,:),'b'); % a 2D k-space plot
+axis('equal'); % enforce aspect ratio for the correct trajectory display
+hold; plot(ktraj_adc(2,:),ktraj_adc(3,:),'r.', 'MarkerSize', 10); % plot the sampling points
+title('full k-space trajectory (k_y x k_z)'); 
+xlabel('k_y'); ylabel('k_z');
 
 return;
 
