@@ -272,6 +272,10 @@ pge2.validate(ceq, sysPGE2);
 pislquant = 10;  % number of ADC events at start of scan for receive gain calibration
 writeceq(ceq, strcat(seqname, '.pge'), 'pislquant', pislquant);   % write Ceq struct to file
 
+%% Plot in pulseq
+seq.plot('timeRange', [0 max(minTR, TR)]);
+
+return;
 %% Plot
 figure('WindowState','maximized');
 % tv6

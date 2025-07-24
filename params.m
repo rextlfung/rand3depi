@@ -35,14 +35,14 @@ dwell = 4e-6; % s
 %% Scan parameters for echo-planar imaging (EPI) sequence
 
 % Spatial parameters
-res = [1.8 1.8 1.8]*1e-3; % resolution (m)
-N = [120 120 80]; % acquisition tensor size
+res = [2.4 2.4 2.4]*1e-3; % resolution (m)
+N = [90 90 60]; % acquisition tensor size
 fov = N .* res; % field of view (m)
 Nx = N(1); Ny = N(2); Nz = N(3);
 
 % Random undersampling parameters. Total acceleration = Ry*Rz*caipi_z
-Ry = 2; Rz = 2; % Acceleration/undersampling factors in each direction
-caipi_z = 3; % Number of kz locations to acquire per shot. Must be positive integer
+Ry = 1; Rz = 1; % Acceleration/undersampling factors in each direction
+caipi_z = 1; % Number of kz locations to acquire per shot. Must be positive integer
 R = [Ry Rz];
 acs = [0 0]; % Central portion of ky-kz space to fully sample
 max_ky_step = round(Ny/16); % Maximum gap in fast PE direction
@@ -52,8 +52,8 @@ max_kz_step = (caipi_z - 1); % Maximum possible jump in slow PE direction
 Nshots = ceil(length(1:caipi_z:(Nz - caipi_z + 1))/Rz); % Number of shots per volume
 
 % Decay parameters
-TE = 30e-3;                         % echo time (s)
-volumeTR = 1;                     % temporal frame rate (s)
+TE = 30.5e-3;                         % echo time (s)
+volumeTR = 4.2;                     % temporal frame rate (s)
 TR = volumeTR / Nshots;             % repetition time (s)
 T1 = 1500e-3;                       % T1 (s)
 
@@ -78,7 +78,7 @@ fatOffresFreq = sys.gamma*sys.B0*fatChemShift;  % Hz
 fatsat.flip    = 90;      % degrees
 fatsat.slThick = 1e5;     % dummy value (determines slice-select gradient, but we won't use it; just needs to be large to reduce dead time before+after rf pulse)
 fatsat.tbw     = 3;       % time-bandwidth product
-fatsat.dur     = 4.0;     % pulse duration (ms)
+fatsat.dur     = 4;     % pulse duration (ms)
 
 %% Scan parameters for gradient echo (GRE) sequence. Used for sensitivity maps
 
