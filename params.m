@@ -58,9 +58,8 @@ TR = volumeTR / Nshots;             % repetition time (s)
 T1 = 1500e-3;                       % T1 (s)
 
 % Number of frames to write in sequence, which is then looped on the scanner
-minNframesPerLoop = lcm(40,Nshots)/Nshots; % number of temporal frames to complete one RF spoil cycle
-task_period = 20; % block experiment duration
-NframesPerLoop = floor(task_period/volumeTR/minNframesPerLoop)*minNframesPerLoop;
+duration = 60; % experiment duration (s)
+Nframes = round(duration/volumeTR);
 
 % Dummy parameters
 Ndummyframes = round(3*T1/TR); % dummy frames to reach steady state for calibration

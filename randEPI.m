@@ -8,9 +8,6 @@
 %% Define experiment parameters
 run('params.m');
 
-% Temporary modifications
-NframesPerLoop = 1; % Only one frame for plotting k-space trajectory
-
 %% Path and options
 seqname = 'randEPI';
 
@@ -53,10 +50,10 @@ rfsat.freqOffset = -fatOffresFreq; % Hz
 weights_y = normpdf(1:Ny, mean(1:Ny), Ny/6);
 weights_z = normpdf(1:Nz, mean(1:Nz), Nz/6);
 
-omegas = zeros(Ny,Nz,NframesPerLoop);
+omegas = zeros(Ny,Nz,Nframes);
 acs_indices_z = zeros(round(Nz*acs(2)), 1); % same for all frames
-nacs_indices_z = zeros(round(Nz/Rz/caipi_z) - round(Nz*acs(2)), NframesPerLoop);
-for frame = 1:NframesPerLoop
+nacs_indices_z = zeros(round(Nz/Rz/caipi_z) - round(Nz*acs(2)), Nframes);
+for frame = 1:Nframes
     % Create pseudo-random 2D sampling mask. Save for recon
     rng(frame); % A different mask per frame
     [omegas(:,:,frame), ...
@@ -174,7 +171,7 @@ sys.adcDeadTime = 0;
 seq = mr.Sequence(sys);
 
 % log the sequence of k-space locations sampled (ky and kz)
-samp_log = zeros(NframesPerLoop, ...
+samp_log = zeros(Nframes, ...
                  round(Nz/caipi_z/Rz)*2*ceil(Ny/Ry/2), ...
                  2);
 
@@ -182,7 +179,7 @@ samp_log = zeros(NframesPerLoop, ...
 rf_count = 1;
 rf_phase = rf_phase_0;
 
-for frame = 1:NframesPerLoop
+for frame = 1:Nframes
     fprintf('Writing frame %d\n', frame)
     % Load in kz-ky sampling mask
     omega = omegas(:,:,frame);
@@ -326,6 +323,7 @@ writeceq(ceq, strcat(seqname, '.pge'), 'pislquant', pislquant);   % write Ceq st
 
 %% Plot in pulseq
 seq.plot('timeRange', [0 max(minTR, TR)]);
+return;
 
 %% Plot trajectories stringing together samples (ChatGPT)
 figure('WindowState','maximized');
