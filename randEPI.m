@@ -172,7 +172,7 @@ seq = mr.Sequence(sys);
 
 % log the sequence of k-space locations sampled (ky and kz)
 samp_log = zeros(Nframes, ...
-                 round(Nz/caipi_z/Rz)*2*ceil(Ny/Ry/2), ...
+                 round(Nz/caipi_z/Rz)*2*round(Ny/Ry/2), ...
                  2);
 
 % RF spoiling trackers
@@ -220,7 +220,7 @@ for frame = 1:Nframes
             part = omega(:,z + caipi_z_range);
             y_locs = find(sum(part,2));
             for i = 1:length(y_locs)
-                z_shifts(i) = find(part(y_locs(i),:)) - 1;
+                z_shifts(i) = find(part(y_locs(i),:)) - round(caipi_z/2);
             end
         else
             y_locs = find(omega(:,z));
