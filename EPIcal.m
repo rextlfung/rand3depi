@@ -161,7 +161,7 @@ rf_phase = rf_phase_0;
 
 % kz encoding loop (fake)
 z_locs = 1:caipi_z:(Nz - caipi_z + 1);
-for iz = -Ndummyframes:length(z_locs)
+for iz = -Ndummyshots:length(z_locs)
     % Convenience booleans for turning off adc
     isDummyFrame = iz < 0;
     isCalFrame = iz > 0;
@@ -279,7 +279,7 @@ return;
 %% Plot
 figure('WindowState','maximized');
 % tv6
-% toppe.plotseq(sysGE, 'timeRange', [0 (Ndummyframes + 1)*TR]);
+% toppe.plotseq(sysGE, 'timeRange', [0 (Ndummyshots + 1)*TR]);
 
 % tv7/pge2
 S = pge2.constructvirtualsegment(ceq.segments(1).blockIDs, ceq.parentBlocks, sysPGE2, true);

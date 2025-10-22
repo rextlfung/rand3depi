@@ -44,7 +44,7 @@ Nx = N(1); Ny = N(2); Nz = N(3);
 Ry = 1; Rz = 6/4; % Acceleration/undersampling factors in each direction
 caipi_z = 4; % Number of kz locations to acquire per shot. Must be positive integer.
 R = [Ry Rz];
-acs = [0.0 0.01]; % Central portion of ky-kz space to fully sample
+acs = [0.1 0.1]; % Central portion of ky-kz space to fully sample
 max_ky_step = round(Ny/16); % Maximum gap in fast PE direction
 max_kz_step = (caipi_z - 1); % Maximum possible jump in slow PE direction
 
@@ -62,7 +62,7 @@ duration = 360; % experiment duration (s)
 Nframes = round(duration/volumeTR);
 
 % Dummy parameters
-Ndummyframes = round(3*T1/TR); % dummy frames to reach steady state for calibration
+Ndummyshots = round(9.6/TR); % dummy shots to reach steady state for calibration
 
 % Exciting stuff
 alpha = 180/pi * acos(exp(-TR/T1)); % Ernst angle (degrees)
