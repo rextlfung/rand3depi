@@ -1,4 +1,4 @@
-%% randsamp2d_caipi2
+%% randsamp2dcaipi
 %
 % Generate a 2D pseudo random sampling pattern with a fully sampled "ACS"
 % region. Outside the ACS region, randomly sample with probability proportional
@@ -35,7 +35,7 @@
 % gap equivalent to caipi_z to prevent replicate sampling locations when
 % applying caipi shifts.
 %
-% Last modified April 18th, 2025. Rex Fung
+% Last modified Oct 23rd, 2025. Rex Fung
 
 function [omega, acs_indices_z, nacs_indices_samp_z] = randsamp2dcaipi(N, R, acs, weights_y, weights_z, max_ky_step, caipi_z)
     % Unpack input arguments
@@ -84,8 +84,7 @@ function [omega, acs_indices_z, nacs_indices_samp_z] = randsamp2dcaipi(N, R, acs
         nacs_indices_z = [(1 + -caipi_z_range(1)):(acs_indices_z(1) - 1 - caipi_z_range(end)), ...
                           (acs_indices_z(end) + 1 + -caipi_z_range(1)):(Nz - caipi_z_range(end))];
     else
-        nacs_indices_z = [(1 + -caipi_z_range(1)):(round(Nz/2) - caipi_z_range(end)), ...
-                          (round(Nz/2) + -caipi_z_range(1) + 1):(Nz - caipi_z_range(end))];
+        nacs_indices_z = [(1 + -caipi_z_range(1)):(Nz - caipi_z_range(end))];
     end
 
     % Compute the number of non-ACS locations to sample based on R
@@ -103,12 +102,11 @@ function [omega, acs_indices_z, nacs_indices_samp_z] = randsamp2dcaipi(N, R, acs
         loc = datasample(nacs_indices_z, 1, 'Weights', w_z);
         nacs_indices_samp_z(iz) = loc;
 
-        % For the next iteration, remove sampling locations that may lead
-        % to replicate sampling after CAIPI-shifts
+        % For the next iteration, prevent sampling locations that could
+        % potentially overlap
         caipi_zone = (-(caipi_z - 1):(caipi_z - 1)) + loc;
         caipi_zone = caipi_zone(1 <= caipi_zone | caipi_zone <= Nz);
-        nacs_indices_z = nacs_indices_z(~ismember(nacs_indices_z, caipi_zone));
-        w_z = w_z(~ismember(nacs_indices_z, caipi_zone));
+        w_z(ismember(nacs_indices_z, caipi_zone)) = 0;
     end
     nacs_indices_samp_z = sort(nacs_indices_samp_z);
 

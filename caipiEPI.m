@@ -9,7 +9,7 @@
 run('params.m');
 
 %% Path and options
-seqname = 'randEPI';
+seqname = 'caipiEPI';
 
 %% Excitation pulse
 % Target a slightly thinner slice to alleviate aliasing
@@ -47,21 +47,20 @@ rfsat.signal = rfsat.signal/max(abs(rfsat.signal))*max(abs(rfp)); % ensure corre
 rfsat.freqOffset = -fatOffresFreq; % Hz
 
 %% Generate temporally incoherent sampling masks
-% Gaussian sampling weights
-weights_y = normpdf(1:Ny, mean(1:Ny), Ny/10);
-weights_z = normpdf(1:Nz, mean(1:Nz), Nz/10);
+Ry = 3; Rz = 2; caipi_z = 3;
 
-% Create pseudo-random 2D sampling mask.
+% Create temporally varying CAIPI 2D sampling mask.
 omegas = zeros(Ny,Nz,Nframes);
-acs_indices_z = zeros(round(Nz*acs(2)), 1); % same for all frames
-nacs_indices_z = zeros(round(Nz/Rz/caipi_z) - round(Nz*acs(2)), Nframes);
 for frame = 1:Nframes
-    % rng(frame); % Reproducibility
-    [omegas(:,:,frame), ...
-     acs_indices_z, ...
-     nacs_indices_z(:,frame)] ...
-     = randsamp2dcaipi(N(2:end), R, acs, weights_y, weights_z, max_ky_step, caipi_z);
+    omega = samp2dcaipi([Ny, Nz], [Ry, Rz], caipi_z);
+    omega = circshift(omega, mod(mod(frame-1, 6), Ry), 1);
+    omega = circshift(omega, mod(mod(frame-1, 6), Rz), 2);
+    omegas(:,:,frame) = omega;
 end
+
+% Redefine acceleration factors (due to CAIPI effective shifting Ry into Rz)
+Ry = Ry/caipi_z;
+Rz = Rz*caipi_z;
 
 %% Define readout gradients and ADC event
 % The Pulseq toolbox really shines here!
@@ -178,7 +177,7 @@ samp_log = zeros(Nframes, round(Nz/caipi_z/Rz)*2*round(Ny/Ry/2), 2);
 rf_count = 1;
 rf_phase = rf_phase_0;
 
-for frame = 1:Nframes
+for frame = 1:1
     fprintf('Writing frame %d\n', frame)
     % Load in kz-ky sampling mask
     omega = omegas(:,:,frame);
@@ -188,8 +187,7 @@ for frame = 1:Nframes
 
     % kz encoding loop
     % Each "z_loc" is the starting point of a partition of kz locations
-    z_locs = sort([acs_indices_z, nacs_indices_z(:,frame)']);
-    z_locs = z_locs(randperm(length(z_locs)));
+    z_locs = 1:Rz:Nz;
     for z = z_locs
         % Label the first block in each "unique" section with TRID (see Pulseq on GE manual)
         TRID = 1;
@@ -215,15 +213,11 @@ for frame = 1:Nframes
 
         % Infer caipi shifts from sampling mask
         z_shifts = zeros(1, 2*round(Ny/Ry/2));
-        if ismember(z, nacs_indices_z(:,frame))
-            caipi_z_range = (1:caipi_z) - round(caipi_z/2); % Compute range of caipi shifts
-            part = omega(:,z + caipi_z_range);
-            y_locs = find(sum(part,2));
-            for i = 1:length(y_locs)
-                z_shifts(i) = find(part(y_locs(i),:)) - round(caipi_z/2);
-            end
-        else
-            y_locs = find(omega(:,z));
+        caipi_z_range = 0:(Rz - 1);
+        part = omega(:,z + caipi_z_range);
+        y_locs = find(sum(part,2));
+        for i = 1:length(y_locs)
+            z_shifts(i) = find(part(y_locs(i),:)) - 1;
         end
 
         % Move to corner of k-space
@@ -359,8 +353,9 @@ end
 plot(ktraj_adc(2,:), ktraj_adc(3,:),'r.', 'MarkerSize', 16); % plot the sampling points
 
 axis equal;
-title(sprintf('CAIPI 3D-EPI trajectory. R = %d', round(Ry*Rz*caipi_z)), 'FontSize', 18);
+title(sprintf('Random 3D-EPI trajectory. R = %d', round(Ry*Rz)), 'FontSize', 18);
 xlabel('k_y (m^{-1})', 'FontSize', 18); ylabel('k_z (m^{-1})', 'FontSize', 18);
+xlim([-Ny*deltak(2)/2, Ny*deltak(2)/2]); ylim([-Nz*deltak(3)/2, Nz*deltak(3)/2]); 
 
 return;
 
