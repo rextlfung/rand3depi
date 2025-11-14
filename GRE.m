@@ -38,11 +38,12 @@ rfsat.signal = rfsat.signal/max(abs(rfsat.signal))*max(abs(rfp)); % ensure corre
 rfsat.freqOffset = -fatOffresFreq;  % Hz
 
 % Same slab-selective pulse as 3D EPI
-[rf, gzSS, gzSSR, delay] = mr.makeSincPulse(alpha_gre/180*pi,...
+[rf, gzSS, gzSSR, delay] = mr.makeSincPulse(alpha/180*pi,...
                                      'duration',rfDur,...
-                                     'sliceThickness',fov_gre(3),...
+                                     'sliceThickness',0.9*fov(3),...
+                                     'timeBwProduct', rfTB, ...
                                      'system',sys,...
-                                     'use', 'excitation');
+                                     'use','excitation');
 gzSS = trap4ge(gzSS,CRT,sys);
 gzSSR = trap4ge(gzSSR,CRT,sys);
 
@@ -202,7 +203,11 @@ pge2.validate(ceq, sysPGE2);
 pislquant = 10;  % number of ADC events at start of scan for receive gain calibration
 writeceq(ceq, strcat(seqname, '.pge'), 'pislquant', pislquant);   % write Ceq struct to file
 
-%% Plot
+%% Plot in pulseq
+seq.plot('timeRange', [TR_gre*1000 TR_gre*1002]);
+return;
+
+%% Plot in GE
 figure('WindowState','maximized');
 % tv6
 % toppe.plotseq(sysGE, 'timeRange', [0 (Ndummyframes + 1)*TR]);

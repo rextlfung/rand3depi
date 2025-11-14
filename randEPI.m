@@ -47,9 +47,6 @@ rfsat.signal = rfsat.signal/max(abs(rfsat.signal))*max(abs(rfp)); % ensure corre
 rfsat.freqOffset = -fatOffresFreq; % Hz
 
 %% Generate temporally incoherent sampling masks
-% Gaussian sampling weights
-weights_y = normpdf(1:Ny, mean(1:Ny), Ny/10);
-weights_z = normpdf(1:Nz, mean(1:Nz), Nz/10);
 
 % Create pseudo-random 2D sampling mask.
 omegas = zeros(Ny,Nz,Nframes);
@@ -178,7 +175,7 @@ samp_log = zeros(Nframes, round(Nz/caipi_z/Rz)*2*round(Ny/Ry/2), 2);
 rf_count = 1;
 rf_phase = rf_phase_0;
 
-for frame = 1:Nframes
+for frame = 1:1
     fprintf('Writing frame %d\n', frame)
     % Load in kz-ky sampling mask
     omega = omegas(:,:,frame);
@@ -189,7 +186,7 @@ for frame = 1:Nframes
     % kz encoding loop
     % Each "z_loc" is the starting point of a partition of kz locations
     z_locs = sort([acs_indices_z, nacs_indices_z(:,frame)']);
-    z_locs = z_locs(randperm(length(z_locs)));
+    % z_locs = z_locs(randperm(length(z_locs)));
     for z = z_locs
         % Label the first block in each "unique" section with TRID (see Pulseq on GE manual)
         TRID = 1;
@@ -322,11 +319,11 @@ pislquant = 10;  % number of ADC events at start of scan for receive gain calibr
 writeceq(ceq, strcat(seqname, '.pge'), 'pislquant', pislquant);   % write Ceq struct to file
 
 %% Plot in pulseq
-seq.plot('timeRange', [0 2*max(minTR, TR)]);
+f = seq.plot('timeRange', [0 2*max(minTR, TR)], 'stacked', 1);
 return;
 
 %% Plot trajectories stringing together samples (ChatGPT)
-figure('WindowState','maximized');
+figure();
 hold on;
 
 % Loop over each excitation
@@ -359,8 +356,9 @@ end
 plot(ktraj_adc(2,:), ktraj_adc(3,:),'r.', 'MarkerSize', 16); % plot the sampling points
 
 axis equal;
-title(sprintf('CAIPI 3D-EPI trajectory. R = %d', round(Ry*Rz*caipi_z)), 'FontSize', 18);
+title(sprintf('Rand 3D-EPI trajectory. R = %d', round(Ry*Rz*caipi_z)), 'FontSize', 18);
 xlabel('k_y (m^{-1})', 'FontSize', 18); ylabel('k_z (m^{-1})', 'FontSize', 18);
+xlim([-Ny*deltak(2)/2, Ny*deltak(2)/2]); ylim([-Nz*deltak(3)/2, Nz*deltak(3)/2]);
 
 return;
 

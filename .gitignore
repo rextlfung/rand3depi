@@ -1,4 +1,5 @@
 # Ignore these crap
+*.nii
 *.7
 *.asv
 *.entry

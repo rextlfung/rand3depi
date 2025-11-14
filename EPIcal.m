@@ -16,6 +16,7 @@ seqname = 'EPIcal';
 [rf, gzSS, gzSSR, delay] = mr.makeSincPulse(alpha/180*pi,...
                                      'duration',rfDur,...
                                      'sliceThickness',0.9*fov(3),...
+                                     'timeBwProduct', rfTB, ...
                                      'system',sys,...
                                      'use','excitation');
 gzSS = trap4ge(gzSS,CRT,sys);
@@ -23,10 +24,6 @@ gzSS.delay = rf.delay - gzSS.riseTime; % Sync up rf pulse and slice select gradi
 gzSSR = trap4ge(gzSSR,CRT,sys);
 
 %% Fat-sat
-fatsat.flip    = 90;      % degrees
-fatsat.slThick = 1e5;     % dummy value (determines slice-select gradient, but we won't use it; just needs to be large to reduce dead time before+after rf pulse)
-fatsat.tbw     = 3;       % time-bandwidth product
-fatsat.dur     = 6.0;     % pulse duration (ms)
 
 % RF waveform in Gauss
 wav = toppe.utils.rf.makeslr(fatsat.flip, fatsat.slThick, fatsat.tbw, fatsat.dur, 1e-6, toppe.systemspecs(), ...
@@ -56,36 +53,39 @@ rfsat.freqOffset = -fatOffresFreq; % Hz
 deltak = 1./fov;
 
 % Start with the blips. Ensure long enough to support the largest blips
-gyBlip = mr.scaleGrad(mr.makeTrapezoid('y', sys, 'area', max_ky_step*deltak(2)), 1/max_ky_step);
+gyBlip = mr.makeTrapezoid('y', sys, 'area', max_ky_step*deltak(2));
+gyBlip = mr.scaleGrad(gyBlip, 1/max_ky_step, sys);
 gyBlip = trap4ge(gyBlip,CRT,sys);
 if caipi_z > 1
-    gzBlip = mr.scaleGrad(mr.makeTrapezoid('z', sys, 'area', (caipi_z - 1)*deltak(3)), 1/(caipi_z - 1));
-else
-    gzBlip = mr.scaleGrad(mr.makeTrapezoid('z', sys, 'area', (caipi_z - 1)*deltak(3)), 1);
+    gzBlip = mr.makeTrapezoid('z', sys, 'area', max_kz_step*deltak(3));
+    gzBlip = mr.scaleGrad(gzBlip, 1/max_kz_step, sys);
+elseif caipi_z == 1
+    gzBlip = mr.makeTrapezoid('z', sys, 'area', 0);
 end
 gzBlip = trap4ge(gzBlip,CRT,sys);
 
-% Area and duration of the longest blip (in y or z)
+% Match blip durations
 if mr.calcDuration(gyBlip) > mr.calcDuration(gzBlip) % biggest blip in y
     maxBlipArea = max_ky_step*deltak(2);
     blipDuration = mr.calcDuration(gyBlip);
-
-    % Remake the other blips to match duration
-    gzBlip = mr.makeTrapezoid('z', sys, 'area', deltak(3), 'duration', blipDuration);
-    % gzBlip = trap4ge(gzBlip,CRT,sys);
+    if caipi_z > 1
+        gzBlip = mr.makeTrapezoid('z', sys, 'area', max_kz_step*deltak(3), 'duration', blipDuration);
+        gzBlip = mr.scaleGrad(gzBlip, 1/max_kz_step, sys);
+    elseif caipi_z == 1
+        gzBlip = mr.makeTrapezoid('z', sys, 'area', 0);
+    end
 else % biggest blip in z
-    maxBlipArea = (caipi_z - 1)*deltak(3);
+    maxBlipArea = max_kz_step*deltak(3);
     blipDuration = mr.calcDuration(gzBlip);
-
-    % Remake the other blips to match duration
-    gyBlip = mr.makeTrapezoid('y', sys, 'area', deltak(2), 'duration', blipDuration);
-    % gyBlip = trap4ge(gyBlip,CRT,sys);
+    gyBlip = mr.makeTrapezoid('y', sys, 'area', max_ky_step*deltak(2));
+    gyBlip = mr.scaleGrad(gyBlip, 1/max_ky_step, sys);
 end
 
 % Readout trapezoid
 systmp = sys;
 systmp.maxGrad = deltak(1)/dwell;  % to ensure Nyquist sampling
-gro = trap4ge(mr.makeTrapezoid('x', systmp, 'Area', Nx*deltak(1) + maxBlipArea),CRT,sys);
+gro = mr.makeTrapezoid('x', systmp, 'Area', Nx*deltak(1) + maxBlipArea);
+gro = trap4ge(gro,CRT,sys);
 
 % Circularly shift gro waveform to contain blips within each block
 [gro1, gro2] = mr.splitGradientAt(gro, blipDuration/2);
@@ -121,7 +121,7 @@ gzSpoil = trap4ge(mr.scaleGrad(...
 minTE = 0.5*mr.calcDuration(rf)...
       + mr.calcDuration(gzSSR)...
       + max([mr.calcDuration(gxPre), mr.calcDuration(gyPre), mr.calcDuration(gzPre)])...
-      + (2*ceil(Ny/Ry/2)/2 - 0.5) * mr.calcDuration(gro);
+      + (2*round(Ny/Ry/2)/2 - 0.5) * mr.calcDuration(gro);
 if TE >= minTE
     TEdelay = floor((TE - minTE)/sys.blockDurationRaster) * sys.blockDurationRaster;
 else
@@ -137,7 +137,7 @@ minTR = mr.calcDuration(rfsat)...
       + mr.calcDuration(gzSSR)...
       + TEdelay...
       + max([mr.calcDuration(gxPre), mr.calcDuration(gyPre), mr.calcDuration(gzPre)])...
-      + 2*ceil(Ny/Ry/2) * mr.calcDuration(gro)...
+      + 2*round(Ny/Ry/2) * mr.calcDuration(gro)...
       + mr.calcDuration(gzPre)...
       + max([mr.calcDuration(gxSpoil), mr.calcDuration(gzSpoil)]);
 if TR >= minTR
@@ -160,8 +160,7 @@ rf_count = 1;
 rf_phase = rf_phase_0;
 
 % kz encoding loop (fake)
-z_locs = 1:caipi_z:(Nz - caipi_z + 1);
-for iz = -Ndummyshots:length(z_locs)
+for iz = -Ndummyshots:Nshots
     % Convenience booleans for turning off adc
     isDummyFrame = iz < 0;
     isCalFrame = iz > 0;
@@ -202,7 +201,7 @@ for iz = -Ndummyshots:length(z_locs)
     
         % Zip through k-space with EPI trajectory
         seq.addBlock(gro1);
-        for iy = 1:(2*ceil(Ny/Ry/2) - 1)
+        for iy = 1:(2*round(Ny/Ry/2) - 1)
             if isCalFrame
                 seq.addBlock(adc, mr.scaleGrad(gro, (-1)^(iy-1)),...
                     mr.scaleGrad(gyBlip, 0));
@@ -273,7 +272,7 @@ pislquant = 10;  % number of ADC events at start of scan for receive gain calibr
 writeceq(ceq, strcat(seqname, '.pge'), 'pislquant', pislquant);   % write Ceq struct to file
 
 %% Plot in pulseq
-seq.plot('timeRange', [0 max(minTR, TR)]);
+seq.plot('timeRange', [Ndummyshots Ndummyshots+1].*max(minTR, TR));
 
 return;
 %% Plot

@@ -47,20 +47,20 @@ rfsat.signal = rfsat.signal/max(abs(rfsat.signal))*max(abs(rfp)); % ensure corre
 rfsat.freqOffset = -fatOffresFreq; % Hz
 
 %% Generate temporally incoherent sampling masks
-Ry = 3; Rz = 2; caipi_z = 3;
+Ry = Ry*caipi_z;
 
 % Create temporally varying CAIPI 2D sampling mask.
 omegas = zeros(Ny,Nz,Nframes);
 for frame = 1:Nframes
     omega = samp2dcaipi([Ny, Nz], [Ry, Rz], caipi_z);
-    omega = circshift(omega, mod(mod(frame-1, 6), Ry), 1);
-    omega = circshift(omega, mod(mod(frame-1, 6), Rz), 2);
+    cycle_frame = mod(frame-1, Ry*Rz) + 1;
+    omega = circshift(omega, mod(cycle_frame-1, Ry), 1);
+    omega = circshift(omega, floor((cycle_frame-1)/Ry), 2);
     omegas(:,:,frame) = omega;
 end
 
 % Redefine acceleration factors (due to CAIPI effective shifting Ry into Rz)
 Ry = Ry/caipi_z;
-Rz = Rz*caipi_z;
 
 %% Define readout gradients and ADC event
 % The Pulseq toolbox really shines here!
@@ -73,8 +73,8 @@ gyBlip = mr.makeTrapezoid('y', sys, 'area', max_ky_step*deltak(2));
 gyBlip = mr.scaleGrad(gyBlip, 1/max_ky_step, sys);
 gyBlip = trap4ge(gyBlip,CRT,sys);
 if caipi_z > 1
-    gzBlip = mr.makeTrapezoid('z', sys, 'area', max_kz_step*deltak(3));
-    gzBlip = mr.scaleGrad(gzBlip, 1/max_kz_step, sys);
+    gzBlip = mr.makeTrapezoid('z', sys, 'area', Rz*max_kz_step*deltak(3));
+    gzBlip = mr.scaleGrad(gzBlip, 1/Rz/max_kz_step, sys);
 elseif caipi_z == 1
     gzBlip = mr.makeTrapezoid('z', sys, 'area', 0);
 end
@@ -85,8 +85,8 @@ if mr.calcDuration(gyBlip) > mr.calcDuration(gzBlip) % biggest blip in y
     maxBlipArea = max_ky_step*deltak(2);
     blipDuration = mr.calcDuration(gyBlip);
     if caipi_z > 1
-        gzBlip = mr.makeTrapezoid('z', sys, 'area', max_kz_step*deltak(3), 'duration', blipDuration);
-        gzBlip = mr.scaleGrad(gzBlip, 1/max_kz_step, sys);
+        gzBlip = mr.makeTrapezoid('z', sys, 'area', Rz*max_kz_step*deltak(3), 'duration', blipDuration);
+        gzBlip = mr.scaleGrad(gzBlip, 1/Rz/max_kz_step, sys);
     elseif caipi_z == 1
         gzBlip = mr.makeTrapezoid('z', sys, 'area', 0);
     end
@@ -187,7 +187,7 @@ for frame = 1:1
 
     % kz encoding loop
     % Each "z_loc" is the starting point of a partition of kz locations
-    z_locs = 1:Rz:Nz;
+    z_locs = 1:Rz*caipi_z:Nz;
     for z = z_locs
         % Label the first block in each "unique" section with TRID (see Pulseq on GE manual)
         TRID = 1;
@@ -213,7 +213,7 @@ for frame = 1:1
 
         % Infer caipi shifts from sampling mask
         z_shifts = zeros(1, 2*round(Ny/Ry/2));
-        caipi_z_range = 0:(Rz - 1);
+        caipi_z_range = 0:(Rz*caipi_z - 1);
         part = omega(:,z + caipi_z_range);
         y_locs = find(sum(part,2));
         for i = 1:length(y_locs)
@@ -320,7 +320,7 @@ seq.plot('timeRange', [0 2*max(minTR, TR)]);
 return;
 
 %% Plot trajectories stringing together samples (ChatGPT)
-figure('WindowState','maximized');
+figure;
 hold on;
 
 % Loop over each excitation
@@ -353,7 +353,7 @@ end
 plot(ktraj_adc(2,:), ktraj_adc(3,:),'r.', 'MarkerSize', 16); % plot the sampling points
 
 axis equal;
-title(sprintf('Random 3D-EPI trajectory. R = %d', round(Ry*Rz)), 'FontSize', 18);
+title(sprintf('Random 3D-EPI trajectory. R = %d', round(Ry*Rz*caipi_z)), 'FontSize', 18);
 xlabel('k_y (m^{-1})', 'FontSize', 18); ylabel('k_z (m^{-1})', 'FontSize', 18);
 xlim([-Ny*deltak(2)/2, Ny*deltak(2)/2]); ylim([-Nz*deltak(3)/2, Nz*deltak(3)/2]); 
 
